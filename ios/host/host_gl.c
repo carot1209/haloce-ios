@@ -158,3 +158,40 @@ void host_gl_buffer_write(uint32_t target, uint32_t offset, uint32_t size, const
 	memcpy(mapping, data, size);
 	glUnmapBuffer(target);
 }
+
+/* ---------- the default framebuffer
+
+iOS has none: SDL's UIKit view draws to a framebuffer object of its own and
+presents its color renderbuffer. The renderer binds framebuffer 0 to draw to
+the window (d3d8_gl.c's present, xgpu_post.c), so 0 is that object, and a
+query of the binding says 0 for it. */
+
+static GLuint default_framebuffer;
+
+void host_gl_set_default_framebuffer(uint32_t framebuffer)
+{
+	/* (SDL binds its view's framebuffer when it makes the context) */
+	if (!framebuffer)
+	{
+		GLint bound = 0;
+
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &bound);
+		framebuffer = (uint32_t)bound;
+	}
+	default_framebuffer = framebuffer;
+	host_logf(HOST_LOG_INFO, "GL: the window's framebuffer is %u", (unsigned)framebuffer);
+}
+
+void host_gl_bind_framebuffer(GLenum target, GLuint framebuffer)
+{
+	glBindFramebuffer(target, framebuffer ? framebuffer : default_framebuffer);
+}
+
+void host_gl_get_integerv(GLenum name, GLint *data)
+{
+	glGetIntegerv(name, data);
+	if (data && default_framebuffer &&
+		(name == GL_DRAW_FRAMEBUFFER_BINDING || name == GL_READ_FRAMEBUFFER_BINDING) &&
+		(GLuint)*data == default_framebuffer)
+		*data = 0;
+}

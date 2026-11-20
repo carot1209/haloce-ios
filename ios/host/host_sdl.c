@@ -235,6 +235,8 @@ uint32_t host_sdl_gl_create_context(uint32_t window)
 		return 0;
 	}
 	SDL_GL_MakeCurrent(request.window, request.context);
+	host_gl_set_default_framebuffer((uint32_t)SDL_GetNumberProperty(SDL_GetWindowProperties(request.window),
+		SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER, 0));
 	return handle_new(_handle_context, request.context);
 }
 

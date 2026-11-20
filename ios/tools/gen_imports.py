@@ -56,6 +56,13 @@ GL_OFFSETS = {
     ("glDrawElementsBaseVertexOES", 3),
 }
 # not in Apple's OpenGL ES 3.0
+# iOS has no default framebuffer: framebuffer 0 of the guest is the FBO that
+# SDL's UIKit view presents (host_gl.c)
+GL_REDIRECT = {
+    "glBindFramebuffer": "host_gl_bind_framebuffer",
+    "glGetIntegerv": "host_gl_get_integerv",
+}
+
 GL_MISSING = {
     "glCopyImageSubData", "glMemoryBarrier", "glDrawElementsBaseVertex",
     "glDrawElementsBaseVertexEXT", "glDrawElementsBaseVertexOES",
@@ -214,7 +221,10 @@ def main():
                            "}", ""]
                 continue
             args = [convert(c_params[i], f"a{i}", (function, i) in GL_OFFSETS) for i in range(len(params))]
-            bodies += [signature, "{", "\t(void)env;", result_cast(result, ret, f"{function}({', '.join(args)})"), "}", ""]
+            target = GL_REDIRECT.get(function, function)
+            if target != function:
+                declarations.append(f"{ret} {target}({', '.join(c_params) or 'void'});")
+            bodies += [signature, "{", "\t(void)env;", result_cast(result, ret, f"{target}({', '.join(args)})"), "}", ""]
             continue
         if name.startswith("hostposix_"):
             function = name[len("hostposix_"):]

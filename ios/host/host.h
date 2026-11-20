@@ -66,8 +66,13 @@ void host_log(int priority, const char *text);
 #define HOST_LOG_INFO 4
 #define HOST_LOG_WARN 5
 #define HOST_LOG_ERROR 6
+
 void host_fatal(const char *format, ...) __attribute__((format(printf, 1, 2), noreturn));
 void host_exit(int code) __attribute__((noreturn));
+
+/* host_gl.c: the framebuffer object of SDL's UIKit view, which stands for the
+guest's framebuffer 0 (0: the one bound now) */
+void host_gl_set_default_framebuffer(uint32_t framebuffer);
 void host_abort(const char *reason) __attribute__((noreturn));
 
 /* the Linux value of a Darwin errno (the guest's musl and the game speak
