@@ -158,7 +158,7 @@ static int watch_pages(uint32_t address, uint32_t size, uint32_t *first, uint32_
 
 void host_memory_watch_initialize(void)
 {
-	watch.base = host_guest_base + HALO_GUEST_WINDOW_BASE;
+	watch.base = GP(HALO_GUEST_WINDOW_BASE);
 }
 
 void host_memory_watch_protect(unsigned int address, unsigned int size)

@@ -52,6 +52,7 @@ jobs:
           name: HaloCE-ipa
           path: |
             out/HaloCE-unsigned.ipa
+            out/HaloCE-SE-unsigned.ipa
             out/build-info.txt
             out/build-log-tail.txt
 
@@ -65,7 +66,7 @@ jobs:
           TMP="$(mktemp -d)"
           cp out/build-log-tail.txt out/status.txt "$TMP/" 2>/dev/null
           cp out/build-info.txt "$TMP/" 2>/dev/null
-          cp out/HaloCE-unsigned.ipa "$TMP/" 2>/dev/null
+          cp out/HaloCE-unsigned.ipa out/HaloCE-SE-unsigned.ipa "$TMP/" 2>/dev/null
           git config user.name "haloce-ci"
           git config user.email "haloce-ci@users.noreply.github.com"
           git checkout -q --orphan ci-logs-new

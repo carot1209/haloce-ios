@@ -48,6 +48,8 @@ def main():
     parser.add_argument("--sdl", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--ios-min", default="15.0")
+    # (the low-memory build's HALO_LOW_MEMORY, with a --w2c from fold_memory.py)
+    parser.add_argument("--define", action="append", default=[])
     args = parser.parse_args()
 
     sdk = subprocess.run(["xcrun", "--sdk", "iphoneos", "--show-sdk-path"], capture_output=True, text=True,
@@ -93,7 +95,7 @@ def main():
     for name in ("wasm-rt-impl.c", "wasm-rt-mem-impl.c"):
         compile_unit(runtime / name, guest_flags, "RT")
 
-    host_flags = common + WASM_RT_DEFINES + includes + ["-Wall", "-Wno-unused-function", "-Wno-unused-parameter"]
+    host_flags = common + WASM_RT_DEFINES + [f"-D{d}" for d in args.define] + includes + ["-Wall", "-Wno-unused-function", "-Wno-unused-parameter"]
     compile_unit(args.w2c / "ios_imports.c", host_flags + ["-Wno-incompatible-pointer-types-discards-qualifiers",
                                                             "-DGL_SILENCE_DEPRECATION"], "CC")
     for source in sorted(host_dir.glob("*.c")):

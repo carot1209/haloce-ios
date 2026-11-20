@@ -7,9 +7,11 @@ Bản port iOS của [OpenCE](https://github.com/OpenCommunityEdition/OpenCE) �
 ## Cài và chơi
 
 1. Tải `HaloCE-unsigned.ipa` (Actions → artifact, hoặc nhánh `ci-logs`), ký và cài bằng Sideloadly/AltStore như các bản port trước.
+   - `HaloCE-unsigned.ipa`: máy RAM 3 GB trở lên (iPhone 11 Pro Max…).
+   - `HaloCE-SE-unsigned.ipa`: máy RAM 2 GB (iPhone SE đời 1, 6s, 7) — bộ nhớ dồn lại, chỉ giữ chỗ 512 MB thay vì 2,1 GB; app riêng tên **Halo CE SE**, thư mục riêng. Không chạy được map Custom Edition (bản PC).
 2. Mở app một lần, rồi dùng app **Tệp → Trên iPhone → Halo CE**, chép file `.iso` vào đó.
 3. Mở lại app: lần đầu app tự chép thư mục `maps/` ra khỏi ISO (khoảng 2 GB, mất một lúc). Xong có thể xoá ISO.
-4. Điều khiển: cảm ứng (analog trái kéo-giữ, vuốt nửa phải để xoay camera, các nút) hoặc tay cầm Xbox qua Bluetooth. Overlay tự ẩn khi có tay cầm (`input.touch_controls` trong `config.toml`).
+4. Điều khiển: cảm ứng kiểu game bắn súng mobile (⚙️ để chỉnh độ nhạy, con quay, bố cục) hoặc tay cầm qua Bluetooth. Overlay tự ẩn khi có tay cầm (`input.touch_controls` trong `config.toml`).
 
 Log lần chạy gần nhất: `halo-log.txt` trong cùng thư mục.
 

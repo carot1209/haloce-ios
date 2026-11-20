@@ -766,7 +766,7 @@ long host_guest_mmap(uint64_t address, uint64_t size, int protection, int flags,
 	/* a file's contents copied in (MAP_ANONYMOUS is 0x20) */
 	if (!(flags & 0x20) && fd >= 0)
 	{
-		ssize_t read_size = pread(fd, host_guest_base + result, (size_t)size, (off_t)offset);
+		ssize_t read_size = pread(fd, GP(result), (size_t)size, (off_t)offset);
 
 		if (read_size < 0)
 		{

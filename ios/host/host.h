@@ -23,14 +23,33 @@ same names and meanings (port/android/guest/runtime/guest_host.h).
 
 /* ---------- guest memory (host_wasm.c) */
 
-/* the base of the guest's linear memory, and its size */
+/* the base of the guest's linear memory, and its size (as the guest sees it) */
 extern uint8_t *host_guest_base;
 #define HOST_GUEST_MEMORY_BYTES 0x88000000ull
 
+/* HALO_LOW_MEMORY (the build for 2 GB phones, ios/tools/fold_memory.py):
+the guest's addresses below HOST_LOW_LIMIT and its Xbox window are all the
+memory there is, the window folded down to follow the low part, so the app
+reserves 512 MB of address space instead of 2.1 GB. Addresses between them
+trap. Otherwise the memory is one block and a guest address its offset. */
+#ifdef HALO_LOW_MEMORY
+#define HOST_LOW_LIMIT 0x18000000u
+#define HOST_FOLD(address) ((uint32_t)(address) >= HALO_GUEST_WINDOW_BASE ? \
+	(uint32_t)(address) - (HALO_GUEST_WINDOW_BASE - HOST_LOW_LIMIT) : (uint32_t)(address))
+#define HOST_UNFOLD(offset) ((uint32_t)(offset) >= HOST_LOW_LIMIT ? \
+	(uint32_t)(offset) + (HALO_GUEST_WINDOW_BASE - HOST_LOW_LIMIT) : (uint32_t)(offset))
+#define HOST_RESERVED_BYTES ((uint64_t)HOST_LOW_LIMIT + HALO_GUEST_WINDOW_SIZE)
+#else
+#define HOST_LOW_LIMIT HALO_GUEST_WINDOW_BASE
+#define HOST_FOLD(address) ((uint32_t)(address))
+#define HOST_UNFOLD(offset) ((uint32_t)(offset))
+#define HOST_RESERVED_BYTES HOST_GUEST_MEMORY_BYTES
+#endif
+
 /* a guest address as a host pointer; 0 stays NULL */
-#define GP(address) ((void *)((uint32_t)(address) ? host_guest_base + (uint32_t)(address) : NULL))
+#define GP(address) ((void *)((uint32_t)(address) ? host_guest_base + HOST_FOLD(address) : NULL))
 /* a host pointer into guest memory as a guest address */
-#define GA(pointer) ((uint32_t)((const uint8_t *)(pointer) - host_guest_base))
+#define GA(pointer) HOST_UNFOLD((const uint8_t *)(pointer) - host_guest_base)
 
 /* page-granular guest memory below the Xbox window, for the guest's mmap
 and the host's own needs (thread stacks, the boot block); 0 on failure */

@@ -77,7 +77,7 @@ void host_wasm_trap(wasm_rt_trap_t trap)
 #define PAGE 0x1000u
 #define WINDOW_BASE HALO_GUEST_WINDOW_BASE
 #define WINDOW_END (HALO_GUEST_WINDOW_BASE + HALO_GUEST_WINDOW_SIZE)
-#define PAGE_COUNT (WINDOW_BASE / PAGE)
+#define PAGE_COUNT (HOST_LOW_LIMIT / PAGE)
 /* the lowest address handed out: above the module's data and main stack
 (checked against __heap_base at start-up) */
 #define LOW_START 0x04000000u
@@ -109,7 +109,7 @@ static void page_set(uint32_t first, uint32_t count, int used)
 static void zero_range(uint32_t address, uint32_t size)
 {
 	uintptr_t host_page = (uintptr_t)getpagesize();
-	uintptr_t start = (uintptr_t)(host_guest_base + address);
+	uintptr_t start = (uintptr_t)(host_guest_base + HOST_FOLD(address));
 	uintptr_t end = start + size;
 	uintptr_t inner_start = (start + host_page - 1) & ~(host_page - 1);
 	uintptr_t inner_end = end & ~(host_page - 1);
@@ -146,7 +146,7 @@ uint32_t host_guest_map(uint32_t address, uint32_t size, int fixed)
 			zero_range(address, count * PAGE <= WINDOW_END - address ? count * PAGE : size);
 			return address;
 		}
-		if (address < LOW_START || address % PAGE || (uint64_t)address + size > WINDOW_BASE)
+		if (address < LOW_START || address % PAGE || (uint64_t)address + size > HOST_LOW_LIMIT)
 			return 0;
 		pthread_mutex_lock(&page_lock);
 		page_set(address / PAGE, count, 1);
@@ -186,7 +186,7 @@ void host_guest_unmap(uint32_t address, uint32_t size)
 {
 	uint32_t count = (size + PAGE - 1) / PAGE;
 
-	if (address < LOW_START || (uint64_t)address + size > WINDOW_BASE)
+	if (address < LOW_START || (uint64_t)address + size > HOST_LOW_LIMIT)
 		return;
 	pthread_mutex_lock(&page_lock);
 	page_set(address / PAGE, count, 0);
@@ -243,7 +243,7 @@ int host_futex_wait(uint32_t address, uint32_t expected, int64_t timeout_ns)
 		}
 	}
 	pthread_mutex_lock(&bucket->lock);
-	if (atomic_load((_Atomic uint32_t *)(host_guest_base + address)) != expected)
+	if (atomic_load((_Atomic uint32_t *)(host_guest_base + HOST_FOLD(address))) != expected)
 	{
 		pthread_mutex_unlock(&bucket->lock);
 		return -EAGAIN;
@@ -319,7 +319,7 @@ uint32_t wasm_rt_atomic_wait32(wasm_rt_shared_memory_t *mem, uint64_t addr, uint
 uint32_t wasm_rt_atomic_wait64(wasm_rt_shared_memory_t *mem, uint64_t addr, uint64_t expected, int64_t timeout)
 {
 	(void)mem;
-	if (atomic_load((_Atomic uint64_t *)(host_guest_base + addr)) != expected)
+	if (atomic_load((_Atomic uint64_t *)(host_guest_base + HOST_FOLD(addr))) != expected)
 		return 1;
 	return wasm_rt_atomic_wait32(mem, addr, (uint32_t)expected, timeout);
 }
@@ -526,7 +526,28 @@ void host_wasm_initialize(void)
 
 	futex_initialize();
 	wasm_rt_init();
+#ifdef HALO_LOW_MEMORY
+	/* the low part and the folded window (host.h), the size the guest's
+	(the bounds checks fold too: ios/tools/fold_memory.py) */
+	{
+		void *block = mmap(NULL, HOST_RESERVED_BYTES, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+
+		if (block == MAP_FAILED)
+			host_fatal("cannot reserve the game's memory (%llu MB)", (unsigned long long)(HOST_RESERVED_BYTES >> 20));
+		memset(&guest_memory, 0, sizeof(guest_memory));
+		guest_memory.data = block;
+		guest_memory.page_size = 65536;
+		guest_memory.pages = pages;
+		guest_memory.max_pages = pages;
+		guest_memory.size = HOST_GUEST_MEMORY_BYTES;
+		guest_memory.is64 = false;
+		pthread_mutex_init(&guest_memory.mem_lock, NULL);
+		host_logf(HOST_LOG_INFO, "memory: %llu MB reserved (low-memory build)",
+			(unsigned long long)(HOST_RESERVED_BYTES >> 20));
+	}
+#else
 	wasm_rt_allocate_memory_shared(&guest_memory, pages, pages, false, 65536);
+#endif
 	host_guest_base = (uint8_t *)guest_memory.data;
 	if (!host_guest_base)
 		host_fatal("cannot reserve the game's memory (%llu MB)", HOST_GUEST_MEMORY_BYTES >> 20);

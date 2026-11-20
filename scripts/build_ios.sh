@@ -95,24 +95,40 @@ if [ ! -f "$SDL_IOS/lib/libSDL3.a" ]; then
     ninja -C "$BUILD/sdl3-ios" install > "$BUILD/sdl3-build.log"
 fi
 
-echo "== the app ($JOBS jobs)"
-IOS_BUILD="$BUILD/ios"
-mkdir -p "$IOS_BUILD"
-python3 "$ROOT/ios/tools/gen_app_ninja.py" --root "$ROOT" --opence "$UP" --w2c "$W2C" --wabt "$WABT" \
-    --sdl "$SDL_IOS" --out "$IOS_BUILD" --ios-min "$IOS_MIN"
-ninja -C "$IOS_BUILD" -j "$JOBS" | { grep -v '^\[.*W2C ' || true; }
-[ -x "$IOS_BUILD/HaloCE" ] || { echo "no executable"; exit 1; }
+# one app: build_app NAME W2C_DIR BUNDLE_ID DISPLAY_NAME [defines...]
+build_app() {
+    local name="$1" w2c="$2" bundle_id="$3" display="$4"; shift 4
+    local ios_build="$BUILD/ios-$name" payload="$BUILD/payload-$name"
+    local defines=()
+    for d in "$@"; do defines+=(--define "$d"); done
+    echo "== the app: $name ($JOBS jobs)"
+    mkdir -p "$ios_build"
+    python3 "$ROOT/ios/tools/gen_app_ninja.py" --root "$ROOT" --opence "$UP" --w2c "$w2c" --wabt "$WABT" \
+        --sdl "$SDL_IOS" --out "$ios_build" --ios-min "$IOS_MIN" ${defines[@]+"${defines[@]}"}
+    ninja -C "$ios_build" -j "$JOBS" | { grep -v '^\[.*W2C ' || true; }
+    [ -x "$ios_build/HaloCE" ] || { echo "no executable"; exit 1; }
 
-echo "== bundle"
-APP="$BUILD/Payload/HaloCE.app"
-rm -rf "$BUILD/Payload"; mkdir -p "$APP"
-cp "$IOS_BUILD/HaloCE" "$APP/HaloCE"
-strip -x "$APP/HaloCE" 2>/dev/null || true
-cp "$ROOT/ios/Info.plist" "$APP/Info.plist"
-cp "$UP/port/assets/network/brokers.txt" "$APP/brokers.txt"
-cp "$ROOT"/ios/icons/*.png "$APP/" 2>/dev/null || true
-printf 'APPL????' > "$APP/PkgInfo"
-( cd "$BUILD" && rm -f "$OUT/HaloCE-unsigned.ipa" && zip -qry "$OUT/HaloCE-unsigned.ipa" Payload )
+    echo "== bundle: $name"
+    local app="$payload/Payload/HaloCE.app"
+    rm -rf "$payload"; mkdir -p "$app"
+    cp "$ios_build/HaloCE" "$app/HaloCE"
+    strip -x "$app/HaloCE" 2>/dev/null || true
+    sed -e "s|<string>com.carot1209.haloce</string>|<string>$bundle_id</string>|" \
+        -e "s|<string>Halo CE</string>|<string>$display</string>|g" "$ROOT/ios/Info.plist" > "$app/Info.plist"
+    cp "$UP/port/assets/network/brokers.txt" "$app/brokers.txt"
+    cp "$ROOT"/ios/icons/*.png "$app/" 2>/dev/null || true
+    printf 'APPL????' > "$app/PkgInfo"
+    ( cd "$payload" && rm -f "$OUT/$name-unsigned.ipa" && zip -qry "$OUT/$name-unsigned.ipa" Payload )
+}
+
+# the phones with 4 GB or more (the guest's memory as one 2.1 GB block)
+build_app HaloCE "$W2C" com.carot1209.haloce "Halo CE"
+# 2 GB phones (iPhone SE 1, 6s, 7): the Xbox window folded down, 512 MB
+# reserved (ios/tools/fold_memory.py, HALO_LOW_MEMORY in ios/host/host.h)
+W2C_SE="$BUILD/w2c-se"
+python3 "$ROOT/ios/tools/fold_memory.py" "$W2C" "$W2C_SE" 0x18000000
+build_app HaloCE-SE "$W2C_SE" com.carot1209.haloce.se "Halo CE SE" HALO_LOW_MEMORY=1
+APP="$BUILD/payload-HaloCE/Payload/HaloCE.app"
 
 {
     echo "upstream : OpenCE $UPSTREAM_REF"
@@ -121,5 +137,6 @@ printf 'APPL????' > "$APP/PkgInfo"
     xcodebuild -version 2>/dev/null | tr '\n' ' '; echo
     echo "guest    : $(stat -f %z "$GUEST/halo_guest.wasm" 2>/dev/null) bytes of wasm"
     echo "ipa      : $(stat -f %z "$OUT/HaloCE-unsigned.ipa" 2>/dev/null) bytes"
+    echo "ipa (SE) : $(stat -f %z "$OUT/HaloCE-SE-unsigned.ipa" 2>/dev/null) bytes"
     file "$APP/HaloCE"
 } | tee "$OUT/build-info.txt"
