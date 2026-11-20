@@ -1,0 +1,61 @@
+diff --git a/src/c-writer.cc b/src/c-writer.cc
+index 185b8a7..0c12a20 100644
+--- a/src/c-writer.cc
++++ b/src/c-writer.cc
+@@ -4422,8 +4422,37 @@ void CWriter::Write(const ExprList& exprs) {
+         return;
+       }
+ 
+-      case ExprType::AtomicWait:
+-      case ExprType::AtomicNotify:
++      case ExprType::AtomicWait: {
++        // (the iOS port of OpenCE: wasm-ld's __wasm_init_memory waits for
++        // the instance that initialises the shared memory; the runtime
++        // provides the wait and the wake, ios/host/host_wasm.c)
++        const auto* inst = cast<AtomicWaitExpr>(&expr);
++        Memory* memory =
++            module_->memories[module_->GetMemoryIndex(inst->memidx)];
++        bool wide = inst->opcode == Opcode::MemoryAtomicWait64;
++        Write(StackVar(2, Type::I32), " = ",
++              wide ? "wasm_rt_atomic_wait64(" : "wasm_rt_atomic_wait32(",
++              ExternalInstancePtr(ModuleFieldType::Memory, memory->name),
++              ", (u64)(", StackVar(2), ") + ", inst->offset, "u, ",
++              StackVar(1), ", ", StackVar(0), ");", Newline());
++        DropTypes(3);
++        PushType(Type::I32);
++        break;
++      }
++
++      case ExprType::AtomicNotify: {
++        const auto* inst = cast<AtomicNotifyExpr>(&expr);
++        Memory* memory =
++            module_->memories[module_->GetMemoryIndex(inst->memidx)];
++        Write(StackVar(1, Type::I32), " = wasm_rt_atomic_notify(",
++              ExternalInstancePtr(ModuleFieldType::Memory, memory->name),
++              ", (u64)(", StackVar(1), ") + ", inst->offset, "u, ",
++              StackVar(0), ");", Newline());
++        DropTypes(2);
++        PushType(Type::I32);
++        break;
++      }
++
+       case ExprType::CallRef:
+       case ExprType::ReturnCallRef:
+         UNIMPLEMENTED("...");
+diff --git a/wasm2c/wasm-rt.h b/wasm2c/wasm-rt.h
+index ffce293..198837f 100644
+--- a/wasm2c/wasm-rt.h
++++ b/wasm2c/wasm-rt.h
+@@ -741,6 +741,12 @@ uint32_t wasm_rt_grow_externref_table(wasm_rt_externref_table_t*,
+                                       uint32_t delta,
+                                       wasm_rt_externref_t init);
+ 
++/* memory.atomic.wait32/64 and memory.atomic.notify (the iOS port of OpenCE
++adds these to wasm2c: the embedder defines them) */
++uint32_t wasm_rt_atomic_wait32(wasm_rt_shared_memory_t* mem, uint64_t addr, uint32_t expected, int64_t timeout);
++uint32_t wasm_rt_atomic_wait64(wasm_rt_shared_memory_t* mem, uint64_t addr, uint64_t expected, int64_t timeout);
++uint32_t wasm_rt_atomic_notify(wasm_rt_shared_memory_t* mem, uint64_t addr, uint32_t count);
++
+ #ifdef __cplusplus
+ }
+ #endif

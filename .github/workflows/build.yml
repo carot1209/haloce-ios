@@ -1,0 +1,78 @@
+name: Build Halo CE IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore: ['README.md']
+
+concurrency:
+  group: build-haloce-ipa
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache downloads, WABT and SDL3
+        uses: actions/cache@v4
+        with:
+          path: ~/haloce-cache
+          key: haloce-cache-${{ hashFiles('upstream.ref', 'ios/wabt.ref', 'ios/patches/wabt-atomic-wait.patch') }}
+
+      - name: Tools
+        run: brew list ninja >/dev/null 2>&1 || brew install ninja
+
+      - name: Build IPA
+        run: |
+          set -o pipefail
+          mkdir -p out
+          HALO_CACHE="$HOME/haloce-cache" scripts/build_ios.sh 2>&1 | tee out/build.log
+
+      - name: Collect log
+        if: always()
+        run: |
+          mkdir -p out
+          [ -f out/build.log ] && tail -n 400 out/build.log > out/build-log-tail.txt || echo "no log" > out/build-log-tail.txt
+          for f in build/guest.log build/sdl3-configure.log build/sdl3-build.log; do
+            [ -f "$f" ] && { echo "=== $f"; tail -n 60 "$f"; } >> out/build-log-tail.txt
+          done
+          echo "${{ job.status }}" > out/status.txt
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HaloCE-ipa
+          path: |
+            out/HaloCE-unsigned.ipa
+            out/build-info.txt
+            out/build-log-tail.txt
+
+      # the log and the IPA also go to the ci-logs branch (one commit, replaced
+      # by every build), so a build can be checked without the Actions page
+      - name: Publish to ci-logs
+        if: always()
+        run: |
+          set +e
+          SHA="$(git rev-parse --short HEAD)"
+          TMP="$(mktemp -d)"
+          cp out/build-log-tail.txt out/status.txt "$TMP/" 2>/dev/null
+          cp out/build-info.txt "$TMP/" 2>/dev/null
+          cp out/HaloCE-unsigned.ipa "$TMP/" 2>/dev/null
+          git config user.name "haloce-ci"
+          git config user.email "haloce-ci@users.noreply.github.com"
+          git checkout -q --orphan ci-logs-new
+          git rm -rfq --cached . >/dev/null 2>&1
+          git clean -ffdxq
+          cp "$TMP"/* .
+          echo "$SHA" > commit.txt
+          git add -A
+          git commit -qm "ci log for $SHA"
+          git push -f origin ci-logs-new:ci-logs
