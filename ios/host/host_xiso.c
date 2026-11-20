@@ -17,7 +17,13 @@ the original discs: XGD1 at 0x18300000).
 
 #include "host.h"
 
+#include <dirent.h>
 #include <errno.h>
+#ifdef __APPLE__
+#include <sys/mount.h>
+#else
+#include <sys/vfs.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -149,6 +155,25 @@ static int add_size(struct image *image, const char *name, uint32_t sector, uint
 
 /* ---------- copying */
 
+/* removes the files of a folder (an unfinished copy's) */
+static void clear_folder(const char *path)
+{
+	DIR *folder = opendir(path);
+	struct dirent *entry;
+	char file[1400];
+
+	if (!folder)
+		return;
+	while ((entry = readdir(folder)) != NULL)
+	{
+		if (entry->d_name[0] == '.')
+			continue;
+		snprintf(file, sizeof(file), "%s/%s", path, entry->d_name);
+		unlink(file);
+	}
+	closedir(folder);
+}
+
 static int copy_file(struct image *image, const char *name, uint32_t sector, uint32_t size, int directory,
 	void *context)
 {
@@ -173,9 +198,23 @@ static int copy_file(struct image *image, const char *name, uint32_t sector, uin
 	{
 		size_t chunk = size - offset > sizeof(buffer) ? sizeof(buffer) : (size_t)(size - offset);
 
-		if (!read_at(image, (uint64_t)sector * SECTOR + offset, buffer, chunk) || write(out, buffer, chunk) != (ssize_t)chunk)
+		ssize_t written;
+
+		if (!read_at(image, (uint64_t)sector * SECTOR + offset, buffer, chunk))
 		{
-			snprintf(image->error, image->error_size, "Cannot copy %s out of the disc image (is it complete?)", name);
+			snprintf(image->error, image->error_size,
+				"Không đọc được %s trong file ISO (file ISO bị thiếu hoặc chép chưa xong?)", name);
+			close(out);
+			return 0;
+		}
+		written = write(out, buffer, chunk);
+		if (written != (ssize_t)chunk)
+		{
+			if (written >= 0 || errno == ENOSPC)
+				snprintf(image->error, image->error_size,
+					"Hết dung lượng iPhone khi chép %s. Hãy giải phóng bộ nhớ rồi mở lại app.", name);
+			else
+				snprintf(image->error, image->error_size, "Không ghi được %s: %s", name, strerror(errno));
 			close(out);
 			return 0;
 		}
@@ -243,7 +282,30 @@ int host_xiso_extract_maps(const char *image_path, const char *destination, host
 	walk(&image, folder, maps.size, 0, add_size, NULL, 0);
 	snprintf(staging, sizeof(staging), "%s/maps.part", destination);
 	snprintf(final, sizeof(final), "%s/maps", destination);
+	/* what an earlier try left is space this one needs */
+	clear_folder(staging);
 	mkdir(staging, 0755);
+	{
+		struct statfs disk;
+		uint64_t free_bytes;
+
+		if (statfs(destination, &disk) == 0)
+		{
+			free_bytes = (uint64_t)disk.f_bavail * disk.f_bsize;
+			/* (and a little room for the saves and the log) */
+			if (free_bytes < image.total + (64ull << 20))
+			{
+				snprintf(error, error_size,
+					"Không đủ dung lượng: thư mục maps cần %llu MB, iPhone còn trống %llu MB. "
+					"Hãy giải phóng thêm khoảng %llu MB rồi mở lại app.",
+					(unsigned long long)(image.total >> 20), (unsigned long long)(free_bytes >> 20),
+					(unsigned long long)((image.total + (64ull << 20) - free_bytes) >> 20) + 1);
+				free(folder);
+				close(image.fd);
+				return 0;
+			}
+		}
+	}
 	ok = walk(&image, folder, maps.size, 0, copy_file, staging, 0);
 	free(folder);
 	close(image.fd);
