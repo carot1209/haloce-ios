@@ -237,6 +237,8 @@ uint32_t host_sdl_gl_create_context(uint32_t window)
 	SDL_GL_MakeCurrent(request.window, request.context);
 	host_gl_set_default_framebuffer((uint32_t)SDL_GetNumberProperty(SDL_GetWindowProperties(request.window),
 		SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER, 0));
+	host_gl_set_view_renderbuffer((uint32_t)SDL_GetNumberProperty(SDL_GetWindowProperties(request.window),
+		SDL_PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER, 0));
 	return handle_new(_handle_context, request.context);
 }
 
@@ -253,6 +255,7 @@ int host_sdl_gl_set_swap_interval(int interval)
 int host_sdl_gl_swap_window(uint32_t window)
 {
 	SDL_Window *object = handle_get(window, _handle_window);
+	bool result;
 
 	/* iOS ends an app that draws in the background */
 	if (host_in_background())
@@ -260,7 +263,12 @@ int host_sdl_gl_swap_window(uint32_t window)
 		host_wait_foreground();
 		return 1;
 	}
-	return object ? SDL_GL_SwapWindow(object) : 0;
+	if (!object)
+		return 0;
+	host_gl_before_swap();
+	result = SDL_GL_SwapWindow(object);
+	host_gl_after_swap();
+	return result;
 }
 
 /* ---------- events */

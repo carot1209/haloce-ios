@@ -73,6 +73,10 @@ void host_exit(int code) __attribute__((noreturn));
 /* host_gl.c: the framebuffer object of SDL's UIKit view, which stands for the
 guest's framebuffer 0 (0: the one bound now) */
 void host_gl_set_default_framebuffer(uint32_t framebuffer);
+/* the color renderbuffer of that view, bound around SDL_GL_SwapWindow */
+void host_gl_set_view_renderbuffer(uint32_t renderbuffer);
+void host_gl_before_swap(void);
+void host_gl_after_swap(void);
 void host_abort(const char *reason) __attribute__((noreturn));
 
 /* the Linux value of a Darwin errno (the guest's musl and the game speak

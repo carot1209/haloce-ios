@@ -195,3 +195,49 @@ void host_gl_get_integerv(GLenum name, GLint *data)
 		(GLuint)*data == default_framebuffer)
 		*data = 0;
 }
+
+/* ---------- presenting
+
+SDL's UIKit view presents whatever renderbuffer is bound when the window
+swaps (SDL_uikitopenglview.m: "viewRenderbuffer should always be bound
+here"), and the renderer binds its own and then 0 (d3d8_gl.c's multisample
+targets). So the view's goes back around each swap, and the game's after. */
+
+static GLuint view_renderbuffer;
+static GLint saved_renderbuffer;
+
+void host_gl_set_view_renderbuffer(uint32_t renderbuffer)
+{
+	view_renderbuffer = renderbuffer;
+	host_logf(HOST_LOG_INFO, "GL: the window's renderbuffer is %u", (unsigned)renderbuffer);
+}
+
+void host_gl_before_swap(void)
+{
+	static int frames;
+
+	glGetIntegerv(GL_RENDERBUFFER_BINDING, &saved_renderbuffer);
+	if (view_renderbuffer)
+		glBindRenderbuffer(GL_RENDERBUFFER, view_renderbuffer);
+	/* (what the first frames look like, for the log) */
+	if (frames < 3 || frames == 60 || frames == 600)
+	{
+		GLint draw = 0, width = 0, height = 0;
+		GLenum status, error = glGetError();
+
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw);
+		glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+		glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)draw);
+		host_logf(HOST_LOG_INFO, "GL: frame %d: draw framebuffer %d, window %dx%d, status 0x%x, error 0x%x", frames,
+			draw, width, height, status, error);
+	}
+	frames++;
+}
+
+void host_gl_after_swap(void)
+{
+	glBindRenderbuffer(GL_RENDERBUFFER, (GLuint)saved_renderbuffer);
+}
