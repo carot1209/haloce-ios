@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PreferenceSpecifiers</key>
+	<array>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Chơi mạng LAN (System Link)</string>
+			<key>FooterText</key>
+			<string>Các máy phải cùng một mạng Wi-Fi (hoặc điểm phát cá nhân của một máy). Lần đầu vào Multiplayer, hãy cho phép app truy cập mạng cục bộ. Nếu không thấy phòng, nhập địa chỉ IP của máy kia (xem trong Cài đặt Wi-Fi), cách nhau bằng dấu phẩy. Đóng hẳn rồi mở lại game để áp dụng.</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Tự tìm máy trong mạng</string>
+			<key>Key</key>
+			<string>lan_scan</string>
+			<key>DefaultValue</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+			<key>Title</key>
+			<string>IP máy khác</string>
+			<key>Key</key>
+			<string>lan_peers</string>
+			<key>DefaultValue</key>
+			<string></string>
+			<key>KeyboardType</key>
+			<string>NumbersAndPunctuation</string>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+		</dict>
+	</array>
+	<key>StringsTable</key>
+	<string>Root</string>
+</dict>
+</plist>

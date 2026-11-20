@@ -117,6 +117,7 @@ build_app() {
         -e "s|<string>Halo CE</string>|<string>$display</string>|g" "$ROOT/ios/Info.plist" > "$app/Info.plist"
     cp "$UP/port/assets/network/brokers.txt" "$app/brokers.txt"
     cp "$ROOT"/ios/icons/*.png "$app/" 2>/dev/null || true
+    cp -R "$ROOT/ios/Settings.bundle" "$app/Settings.bundle"
     printf 'APPL????' > "$app/PkgInfo"
     ( cd "$payload" && rm -f "$OUT/$name-unsigned.ipa" && zip -qry "$OUT/$name-unsigned.ipa" Payload )
 }

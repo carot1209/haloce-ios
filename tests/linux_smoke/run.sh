@@ -26,7 +26,7 @@ objs=()
 for f in "$W2C"/guest_*.c "$WABT/wasm2c/wasm-rt-impl.c" "$WABT/wasm2c/wasm-rt-mem-impl.c"; do
   objs+=("$OUT/obj/$(basename "$(dirname "$f")")_$(basename "$f").o"); done
 for f in "$W2C/ios_imports.c" "$IOS/host/host_wasm.c" "$IOS/host/host_syscall.c" "$IOS/host/host_misc.c" \
-         "$IOS/host/host_gl.c" "$IOS/host/host_xiso.c" "$UP/port/android/host/host_watch_hash.c" "$HERE/smoke_main.c"; do
+         "$IOS/host/host_gl.c" "$IOS/host/host_xiso.c" "$IOS/host/host_net.c" "$UP/port/android/host/host_watch_hash.c" "$HERE/smoke_main.c"; do
   build "$f" $RT $INC -include "$HERE/compat.h" -w
 done
 build "$UP/port/linux/src/posix_files.c" -w

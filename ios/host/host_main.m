@@ -24,6 +24,8 @@ which the player can send along with a problem.
 
 #include "host.h"
 
+#include <arpa/inet.h>
+
 #include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
@@ -400,6 +402,59 @@ static void display_read(void)
 	display_density = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 }
 
+/* system link's broadcasts (network.broadcast, port/linux/src/xnet.c):
+since iOS 14 an app without Apple's multicast entitlement cannot
+broadcast, so the game's searches and advertisements also go, as unicast,
+to every other address of the local network (at most its /24), and to the
+addresses the player gave in the Settings app (Settings > Halo CE) */
+static void lan_targets(struct environment *environment)
+{
+	NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+	NSString *peers = [defaults stringForKey:@"lan_peers"];
+	BOOL scan = [defaults objectForKey:@"lan_scan"] ? [defaults boolForKey:@"lan_scan"] : YES;
+	NSMutableString *list = [NSMutableString stringWithString:@"255.255.255.255"];
+	uint32_t address, mask, count = 1;
+
+	for (NSString *peer in [peers componentsSeparatedByCharactersInSet:
+		[NSCharacterSet characterSetWithCharactersInString:@", ;\n"]])
+	{
+		struct in_addr parsed;
+
+		if (peer.length && inet_pton(AF_INET, peer.UTF8String, &parsed) == 1 && count < 256)
+		{
+			[list appendFormat:@",%@", peer];
+			count++;
+		}
+	}
+	if (host_local_network(&address, &mask))
+	{
+		uint32_t host = ntohl(address), net_mask = ntohl(mask), first, last, other;
+
+		/* (at most the /24 around this phone) */
+		if (net_mask < 0xffffff00u)
+			net_mask = 0xffffff00u;
+		first = (host & net_mask) + 1;
+		last = (host | ~net_mask) - 1;
+		[list appendFormat:@",%u.%u.%u.%u", (host | ~net_mask) >> 24, ((host | ~net_mask) >> 16) & 255,
+			((host | ~net_mask) >> 8) & 255, (host | ~net_mask) & 255];
+		count++;
+		for (other = first; scan && other <= last && count < 256; other++)
+		{
+			if (other == host)
+				continue;
+			[list appendFormat:@",%u.%u.%u.%u", other >> 24, (other >> 16) & 255, (other >> 8) & 255, other & 255];
+			count++;
+		}
+		host_logf(HOST_LOG_INFO, "LAN: this phone is %u.%u.%u.%u, %u broadcast targets", host >> 24,
+			(host >> 16) & 255, (host >> 8) & 255, host & 255, (unsigned)count);
+	}
+	else
+	{
+		host_logf(HOST_LOG_INFO, "LAN: no local network (Wi-Fi off?)");
+	}
+	environment_set(environment, "HALO_NET_BROADCAST", list.UTF8String);
+}
+
 /* the start, on a thread of its own: the maps, then the game */
 static void *start_thread(void *unused)
 {
@@ -444,6 +499,7 @@ static void *start_thread(void *unused)
 	}
 	time_zone(zone, sizeof(zone));
 	environment_set(&environment, "TZ", zone);
+	lan_targets(&environment);
 
 	/* internet play's brokers list, from the app bundle, beside config.toml */
 	{

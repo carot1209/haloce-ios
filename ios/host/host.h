@@ -112,6 +112,10 @@ int host_event_pop(void *event);
 int host_in_background(void);
 void host_wait_foreground(void);
 
+/* ---------- the network (host_misc.c): the local network's address and
+mask, network byte order; 0 without one */
+int host_local_network(uint32_t *address, uint32_t *mask);
+
 /* ---------- the on-screen controls (host_touch.m) */
 /* puts the overlay over the SDL window's view (main thread) */
 void host_touch_install(void *sdl_window);

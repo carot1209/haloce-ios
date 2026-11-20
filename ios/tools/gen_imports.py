@@ -74,6 +74,11 @@ POSIX_NATIVE = {
     "stat", "fstat", "set_file_times", "seek", "truncate", "disk_space",
     "set_read_only", "make_directory", "directory_open", "directory_next",
     "directory_close", "find_entry_case_insensitive",
+    # (sockets: ios/host/host_net.c)
+    "socket", "socket_last_error", "socket_close", "socket_bind", "socket_connect", "socket_listen",
+    "socket_accept", "socket_send", "socket_sendto", "socket_recv", "socket_recvfrom", "socket_shutdown",
+    "socket_set_nonblocking", "socket_set_nodelay", "socket_bytes_available", "socket_setsockopt",
+    "socket_getsockopt", "socket_getsockname", "socket_getpeername", "socket_select",
 }
 POSIX_HOST = {
     "random_bytes", "process_id", "command_line_argument",

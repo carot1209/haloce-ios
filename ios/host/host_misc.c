@@ -7,6 +7,11 @@ emulator do it, port/android/host/host_watch_hash.c), and the few posix.h
 functions the host gives itself rather than port/linux/src/posix_files.c.
 */
 
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include "host.h"
 #include "host_watch_hash.h"
 
@@ -91,15 +96,57 @@ int host_posix_command_line_argument(int index, char *buffer, unsigned int size)
 	return 0;
 }
 
+/* the local network's address and mask (network byte order): Wi-Fi's
+(en0) first, else the first IPv4 interface up with broadcasts (a hotspot's
+bridge), not loopback; 0 without one */
+int host_local_network(uint32_t *address, uint32_t *mask)
+{
+	struct ifaddrs *list, *entry;
+	int found = 0;
+
+	*address = *mask = 0;
+	if (getifaddrs(&list) != 0)
+		return 0;
+	for (int pass = 0; pass < 2 && !found; pass++)
+	{
+		for (entry = list; entry && !found; entry = entry->ifa_next)
+		{
+			if (!entry->ifa_addr || entry->ifa_addr->sa_family != AF_INET || !entry->ifa_netmask)
+				continue;
+			if (!(entry->ifa_flags & IFF_UP) || (entry->ifa_flags & IFF_LOOPBACK) || !(entry->ifa_flags & IFF_BROADCAST))
+				continue;
+			if (pass == 0 && strcmp(entry->ifa_name, "en0"))
+				continue;
+			*address = ((struct sockaddr_in *)entry->ifa_addr)->sin_addr.s_addr;
+			*mask = ((struct sockaddr_in *)entry->ifa_netmask)->sin_addr.s_addr;
+			found = 1;
+		}
+	}
+	freeifaddrs(list);
+	return found;
+}
+
 unsigned int host_posix_local_ipv4_address(void)
 {
-	return 0;
+	uint32_t address, mask;
+
+	return host_local_network(&address, &mask) ? address : 0;
 }
 
 unsigned int host_posix_resolve_ipv4(const char *name)
 {
-	(void)name;
-	return 0;
+	struct addrinfo hints, *result = NULL;
+	unsigned int address = 0;
+
+	if (!name || !*name)
+		return 0;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	if (getaddrinfo(name, NULL, &hints, &result) == 0 && result)
+		address = ((struct sockaddr_in *)result->ai_addr)->sin_addr.s_addr;
+	if (result)
+		freeaddrinfo(result);
+	return address;
 }
 
 int host_posix_register_url_scheme(const char *scheme, const char *description)
