@@ -19,7 +19,7 @@ from pathlib import Path
 
 FRAMEWORKS = [
     "AVFoundation", "AudioToolbox", "CoreAudio", "CoreBluetooth", "CoreFoundation", "CoreGraphics",
-    "CoreHaptics", "CoreMotion", "CoreVideo", "Foundation", "GameController", "IOKit", "Metal",
+    "CoreHaptics", "CoreMedia", "CoreMotion", "CoreVideo", "Foundation", "GameController", "IOKit", "Metal",
     "OpenGLES", "QuartzCore", "UIKit", "UniformTypeIdentifiers",
 ]
 
