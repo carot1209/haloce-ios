@@ -169,8 +169,6 @@ static void create_window_main(void *context)
 
 	request->window = SDL_CreateWindow(request->title, request->width, request->height,
 		(SDL_WindowFlags)request->flags | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-	if (request->window)
-		host_touch_install(request->window);
 }
 
 uint32_t host_sdl_create_window(const char *title, int width, int height, int64_t flags)
@@ -219,7 +217,12 @@ static void create_context_main(void *context)
 	request->context = SDL_GL_CreateContext(request->window);
 	/* made on the main thread (its view is UIKit's), current on the game's */
 	if (request->context)
+	{
 		SDL_GL_MakeCurrent(request->window, NULL);
+		/* (over the OpenGL view, which the context's creation put in place of
+		the window's first view) */
+		host_touch_install(request->window);
+	}
 }
 
 uint32_t host_sdl_gl_create_context(uint32_t window)
