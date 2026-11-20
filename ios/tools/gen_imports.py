@@ -42,7 +42,6 @@ HOST_STUBS = {
     "host_sha256_start": "-1",
     "host_sha256_poll": "-1",
     "host_sha256_cancel": None,
-    "host_https_get": "0",
 }
 STEAM_STUB_RESULT = "0"
 

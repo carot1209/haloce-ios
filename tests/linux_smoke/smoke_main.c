@@ -356,3 +356,14 @@ int main(int argc, char **argv)
 	for (;;)
 		pause();
 }
+
+/* ---------- host_https.m's, as a stand-in (no master servers here) */
+int host_https_get(const char *url, int *status, char *headers, int headers_size, char *body, int body_capacity,
+	int *body_size, char *error, int error_size)
+{
+	(void)url; (void)headers; (void)headers_size; (void)body; (void)body_capacity;
+	*status = 0;
+	*body_size = 0;
+	snprintf(error, (size_t)error_size, "smoke test");
+	return 0;
+}
