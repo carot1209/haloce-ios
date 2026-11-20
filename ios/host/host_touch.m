@@ -197,20 +197,25 @@ static const struct kind
 	int flags;
 } kinds[] =
 {
-	{ "move", -1, -1, 150, 400, 66, _kind_stick },
-	{ "fire", _input_right_trigger, 7, 862, 328, 46, _kind_aims },
-	{ "fire_left", _input_right_trigger, 7, 108, 200, 34, _kind_aims },
-	{ "zoom", _input_right_stick, 15, 868, 192, 30, _kind_aims },
-	{ "jump", _input_a, 0, 908, 470, 31, 0 },
-	{ "crouch", _input_left_stick, 14, 800, 486, 28, _kind_toggle },
-	{ "melee", _input_b, 1, 752, 404, 29, 0 },
-	{ "action", _input_x, 2, 636, 330, 34, 0 },
-	{ "grenade", _input_left_trigger, 6, 742, 252, 29, 0 },
-	{ "grenade_type", _input_right_shoulder, 4, 790, 160, 23, 0 },
-	{ "weapon", _input_y, 3, 520, 482, 30, 0 },
-	{ "light", _input_left_shoulder, 5, 912, 72, 22, 0 },
-	{ "pause", _input_start, 12, 530, 34, 20, 0 },
-	{ "score", _input_back, 13, 430, 34, 20, 0 },
+	/* the left thumb: the stick, crouch under it, and what it reaches for
+	now and then (the second fire button, reload and action, weapon swap,
+	grenade type); the right thumb keeps room to turn the view */
+	{ "move", -1, -1, 210, 355, 66, _kind_stick },
+	{ "crouch", _input_left_stick, 14, 210, 500, 26, _kind_toggle },
+	{ "fire_left", _input_right_trigger, 7, 80, 250, 32, _kind_aims },
+	{ "action", _input_x, 2, 312, 240, 30, 0 },
+	{ "weapon", _input_y, 3, 205, 170, 28, 0 },
+	{ "grenade_type", _input_right_shoulder, 4, 325, 135, 22, 0 },
+	/* the right thumb */
+	{ "fire", _input_right_trigger, 7, 850, 340, 46, _kind_aims },
+	{ "zoom", _input_right_stick, 15, 862, 190, 30, _kind_aims },
+	{ "jump", _input_a, 0, 905, 472, 31, 0 },
+	{ "melee", _input_b, 1, 742, 425, 29, 0 },
+	{ "grenade", _input_left_trigger, 6, 738, 262, 29, 0 },
+	/* the top, clear of the HUD's corners */
+	{ "score", _input_back, 13, 420, 34, 20, 0 },
+	{ "pause", _input_start, 12, 520, 34, 20, 0 },
+	{ "light", _input_left_shoulder, 5, 620, 34, 20, 0 },
 };
 #define KIND_COUNT ((int)(sizeof(kinds) / sizeof(kinds[0])))
 
@@ -250,13 +255,15 @@ static BOOL setting_gyro = NO;
 static BOOL setting_gyro_invert = NO;
 static BOOL setting_crouch_toggle = YES;
 static BOOL setting_rumble = YES;
+/* the buttons and the stick drawn (off: swipes only, and the gear) */
+static BOOL setting_shown = YES;
 
 #define DEFAULTS_PREFIX @"halo.touch."
 
 enum
 {
 	_tag_sensitivity = 1, _tag_gyro_sensitivity, _tag_opacity, _tag_size,
-	_tag_gyro = 11, _tag_gyro_invert, _tag_crouch_toggle, _tag_rumble, _tag_left_fire,
+	_tag_gyro = 11, _tag_gyro_invert, _tag_crouch_toggle, _tag_rumble, _tag_left_fire, _tag_shown,
 };
 
 /* each finger's role: a control's index, or one of these */
@@ -313,7 +320,7 @@ enum
 - (void)loadSettings
 {
 	NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
-	NSDictionary *layout = [defaults dictionaryForKey:DEFAULTS_PREFIX @"layout"];
+	NSDictionary *layout = [defaults dictionaryForKey:DEFAULTS_PREFIX @"layout2"];
 
 	if ([defaults objectForKey:DEFAULTS_PREFIX @"sensitivity"])
 	{
@@ -325,6 +332,7 @@ enum
 		setting_gyro_invert = [defaults boolForKey:DEFAULTS_PREFIX @"gyro_invert"];
 		setting_crouch_toggle = [defaults boolForKey:DEFAULTS_PREFIX @"crouch_toggle"];
 		setting_rumble = [defaults boolForKey:DEFAULTS_PREFIX @"rumble"];
+		setting_shown = ![defaults boolForKey:DEFAULTS_PREFIX @"buttons_hidden"];
 	}
 	for (HaloControl *control in controls)
 	{
@@ -351,7 +359,7 @@ enum
 
 	for (HaloControl *control in controls)
 		layout[@(kinds[control.kind].key)] = @[ @(control.gridX), @(control.gridY), @(control.scale), @(control.off) ];
-	[defaults setObject:layout forKey:DEFAULTS_PREFIX @"layout"];
+	[defaults setObject:layout forKey:DEFAULTS_PREFIX @"layout2"];
 	[defaults setFloat:setting_sensitivity forKey:DEFAULTS_PREFIX @"sensitivity"];
 	[defaults setFloat:setting_gyro_sensitivity forKey:DEFAULTS_PREFIX @"gyro_sensitivity"];
 	[defaults setFloat:setting_opacity forKey:DEFAULTS_PREFIX @"opacity"];
@@ -360,6 +368,7 @@ enum
 	[defaults setBool:setting_gyro_invert forKey:DEFAULTS_PREFIX @"gyro_invert"];
 	[defaults setBool:setting_crouch_toggle forKey:DEFAULTS_PREFIX @"crouch_toggle"];
 	[defaults setBool:setting_rumble forKey:DEFAULTS_PREFIX @"rumble"];
+	[defaults setBool:!setting_shown forKey:DEFAULTS_PREFIX @"buttons_hidden"];
 }
 
 /* ---------- making and placing the controls */
@@ -437,7 +446,7 @@ enum
 		[UIColor colorWithWhite:1.0 alpha:0.55]).CGColor;
 	control.backgroundColor = [UIColor colorWithWhite:lit ? 0.85 : 0.0 alpha:lit ? 0.45 : (stick ? 0.12 : 0.28)];
 	control.alpha = (control.off ? (editing ? 0.3 : 0.0) : setting_opacity);
-	control.hidden = control.off && !editing;
+	control.hidden = (control.off || !setting_shown) && !editing;
 	control.icon.frame = CGRectInset(control.bounds, radius * 0.48, radius * 0.48);
 	control.label.frame = CGRectMake(-24, radius * 2 + 1, radius * 2 + 48, 13);
 	control.label.hidden = stick || radius < 20;
@@ -449,7 +458,8 @@ enum
 	for (HaloControl *control in controls)
 		[self styleControl:control];
 	[self placeKnob];
-	gear.center = CGPointMake(CGRectGetMinX([self area]) + 22, CGRectGetMinY([self area]) + 20);
+	gear.center = CGPointMake(CGRectGetMinX([self area]) + 320.0 / 960.0 * [self area].size.width,
+		CGRectGetMinY([self area]) + 34.0 / 540.0 * [self area].size.height);
 	if (panel)
 		panel.center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
 	if (toolbar)
@@ -466,7 +476,7 @@ enum
 	stickKnob.alpha = setting_opacity;
 	if (!stickTouch || editing)
 		stickKnob.center = stick.center;
-	stickKnob.hidden = editing;
+	stickKnob.hidden = editing || !setting_shown;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -605,7 +615,7 @@ enum
 		CGFloat dx = point.x - control.center.x, dy = point.y - control.center.y;
 		CGFloat distance = dx * dx + dy * dy;
 
-		if ((control.off && !all) || ((kinds[control.kind].flags & _kind_stick) && !all))
+		if (((control.off || !setting_shown) && !all) || ((kinds[control.kind].flags & _kind_stick) && !all))
 			continue;
 		if (distance <= radius * radius && (!best || distance < bestDistance))
 		{
@@ -686,7 +696,7 @@ was moved to */
 			[self setControl:control down:YES];
 			[roles setObject:@(control.kind) forKey:touch];
 		}
-		else if (!stickTouch && [self inStickZone:point])
+		else if (!stickTouch && setting_shown && [self inStickZone:point])
 		{
 			HaloControl *stick = [self controlNamed:@"move"];
 
@@ -938,7 +948,8 @@ was moved to */
 	title.font = [UIFont boldSystemFontOfSize:18];
 	hint = [[UILabel alloc] init];
 	hint.text = @"Giữ nút Nạp / Dùng để nhặt súng, lên xe, lật xe, bấm công tắc. "
-		@"Nút Bắn và Ngắm vừa giữ vừa kéo để xoay tầm nhìn.";
+		@"Nút Bắn và Ngắm vừa giữ vừa kéo để xoay tầm nhìn. "
+		@"Chỉnh bố cục: kéo nút để dời, chọn nút rồi bấm −/+ để đổi cỡ, Ẩn/Hiện từng nút.";
 	hint.textColor = [UIColor colorWithWhite:1.0 alpha:0.6];
 	hint.font = [UIFont systemFontOfSize:12];
 	hint.numberOfLines = 0;
@@ -951,6 +962,7 @@ was moved to */
 
 	stack = [[UIStackView alloc] initWithArrangedSubviews:@[
 		title,
+		[self toggle:@"Hiện nút ảo" tag:_tag_shown value:setting_shown],
 		[self slider:@"Độ nhạy vuốt" tag:_tag_sensitivity value:setting_sensitivity from:0.25f to:4.0f],
 		[self toggle:@"Ngắm bằng con quay" tag:_tag_gyro value:setting_gyro],
 		[self slider:@"Độ nhạy con quay" tag:_tag_gyro_sensitivity value:setting_gyro_sensitivity from:0.25f to:4.0f],
@@ -991,6 +1003,7 @@ was moved to */
 	case _tag_gyro_invert: setting_gyro_invert = on; break;
 	case _tag_crouch_toggle: setting_crouch_toggle = on; break;
 	case _tag_rumble: setting_rumble = on; break;
+	case _tag_shown: setting_shown = on; break;
 	case _tag_left_fire: [self controlNamed:@"fire_left"].off = !on; break;
 	}
 	[self saveSettings];
