@@ -141,7 +141,11 @@ uint32_t host_guest_map(uint32_t address, uint32_t size, int fixed)
 	{
 		/* the Xbox window is the guest's own to place things in */
 		if (address >= WINDOW_BASE && (uint64_t)address + size <= WINDOW_END)
+		{
+			/* (fresh mappings read as zero, as the Android host's do) */
+			zero_range(address, count * PAGE <= WINDOW_END - address ? count * PAGE : size);
 			return address;
+		}
 		if (address < LOW_START || address % PAGE || (uint64_t)address + size > WINDOW_BASE)
 			return 0;
 		pthread_mutex_lock(&page_lock);

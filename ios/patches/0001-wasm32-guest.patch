@@ -22,3 +22,25 @@ index a851516..5544761 100644
  control word is only remembered, so that the game reads back what it set. */
  static unsigned int msvc_control_word = CW_DEFAULT;
  
+diff --git a/source/cache/cache_files_windows.c b/source/cache/cache_files_windows.c
+index 4933bb1..58c6777 100644
+--- a/source/cache/cache_files_windows.c
++++ b/source/cache/cache_files_windows.c
+@@ -1240,7 +1240,7 @@ static void cache_file_windows_thread_proc(
+ 	return;
+ }
+ 
+-#ifdef HALO_WEB
++#if defined(HALO_WEB) || defined(__wasm32__)
+ /* port: WebAssembly calls a function only through a pointer of its own type,
+ so the thread starts here, with the type CreateThread calls */
+ static DWORD WINAPI cache_file_windows_thread_start(
+@@ -1262,7 +1262,7 @@ static void cache_file_windows_thread_create(
+ 	cache_file_globals.thread = CreateThread(
+ 		NULL,
+ 		CACHE_FILE_THREAD_STACK_SIZE,
+-#ifdef HALO_WEB
++#if defined(HALO_WEB) || defined(__wasm32__)
+ 		cache_file_windows_thread_start,
+ #else
+ 		(LPTHREAD_START_ROUTINE)cache_file_windows_thread_proc,
