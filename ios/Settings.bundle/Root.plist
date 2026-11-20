@@ -38,6 +38,24 @@
 			<key>AutocorrectionType</key>
 			<string>No</string>
 		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Đồ hoạ</string>
+			<key>FooterText</key>
+			<string>Bật nếu một số map (nhất là map Custom Edition khi chơi online) không hiện địa hình hoặc vẽ sai. Chế độ này dùng các đường vẽ thận trọng của bản Android, có thể chậm hơn. Đóng hẳn rồi mở lại game để áp dụng.</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Đồ hoạ tương thích</string>
+			<key>Key</key>
+			<string>render_compat</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
 	</array>
 	<key>StringsTable</key>
 	<string>Root</string>

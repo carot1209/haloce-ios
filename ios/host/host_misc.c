@@ -7,6 +7,9 @@ emulator do it, port/android/host/host_watch_hash.c), and the few posix.h
 functions the host gives itself rather than port/linux/src/posix_files.c.
 */
 
+#ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netdb.h>
@@ -158,10 +161,23 @@ int host_posix_register_url_scheme(const char *scheme, const char *description)
 
 /* ---------- the device */
 
+/* android_render_policy.h's families: what the renderer works around
+(guest_render_policy.c). Apple's GPU needs none of the Android drivers'
+fixes ("other": the mirror's geometry and plain textures, as on Mali and
+PowerVR); the Settings app's "Đồ hoạ tương thích" switch takes the
+cautious paths of an unknown chip instead (static geometry buffers and
+converted Custom Edition textures), for a map that draws wrong. */
 int host_android_chip_family(void)
 {
-	/* (android_render_policy.h's "other": no workarounds of a GPU vendor's) */
-	return 0;
+	int compatible = 0;
+#ifdef __APPLE__
+	Boolean valid = false;
+
+	compatible = (int)CFPreferencesGetAppBooleanValue(CFSTR("render_compat"), kCFPreferencesCurrentApplication, &valid);
+	if (!valid)
+		compatible = 0;
+#endif
+	return compatible ? 0 /* unknown */ : 3 /* other */;
 }
 
 /* ---------- write tracking (port/linux/src/memory_watch.c's interface) */
