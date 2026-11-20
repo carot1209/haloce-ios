@@ -162,11 +162,12 @@ int host_posix_register_url_scheme(const char *scheme, const char *description)
 /* ---------- the device */
 
 /* android_render_policy.h's families: what the renderer works around
-(guest_render_policy.c). Apple's GPU needs none of the Android drivers'
-fixes ("other": the mirror's geometry and plain textures, as on Mali and
-PowerVR); the Settings app's "Đồ hoạ tương thích" switch takes the
-cautious paths of an unknown chip instead (static geometry buffers and
-converted Custom Edition textures), for a map that draws wrong. */
+(guest_render_policy.c). On Apple's GPU the geometry's mirror works (the
+static buffers of the Adreno fix drew no level of a Custom Edition map),
+but it has no S3TC, so Custom Edition maps' DXT textures must be converted
+(their raw blocks drew as red and green stripes): the family that gives
+just that is "mediatek". The Settings app's "Đồ hoạ tương thích" switch
+takes an unknown chip's paths instead (both fixes). */
 int host_android_chip_family(void)
 {
 	int compatible = 0;
@@ -177,7 +178,7 @@ int host_android_chip_family(void)
 	if (!valid)
 		compatible = 0;
 #endif
-	return compatible ? 0 /* unknown */ : 3 /* other */;
+	return compatible ? 0 /* unknown */ : 2 /* mediatek: textures converted, geometry mirrored */;
 }
 
 /* ---------- write tracking (port/linux/src/memory_watch.c's interface) */
